@@ -54,8 +54,8 @@ how to process large volumes of text data asynchronously using RabbitMQ and Mong
 
 1. **Clone the repo**  
    ```bash
-   git clone <your-github-url>
-   cd text_analysis_service
+   git clone https://github.com/pydevmarwa/Text-Analysis-Service.git
+   cd Text-Analysis-Service
    ```
 
 2. **Build and start**  
