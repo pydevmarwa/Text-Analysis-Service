@@ -1,7 +1,7 @@
 import os
 import logging
 
-# Base dir = dossier racine du projet dans le conteneur => /app
+# Base directory = root folder of the project inside the container → /app
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LOG_DIR = os.path.join(BASE_DIR, 'logs')
 os.makedirs(LOG_DIR, exist_ok=True)
@@ -11,7 +11,7 @@ LOG_FILE = os.path.join(LOG_DIR, 'service.log')
 logger = logging.getLogger("text_analysis_service")
 logger.setLevel(logging.INFO)
 
-# Clear handlers pour éviter les doublons
+# Clear previous handlers to avoid duplicate logs
 if logger.hasHandlers():
     logger.handlers.clear()
 
