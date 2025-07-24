@@ -70,5 +70,10 @@ async def save_to_mongodb(message: dict):
     """
     if message.get('action') == 'delete':
         await db_manager.delete(message['id'])
-    else:
+        return
+    if message.get('action') == 'update':
         await db_manager.save_or_update(message)
+    else:
+        logger.error(f"Unknown action received: {message.get('action')}")
+        raise ValueError(f"Unknown action: {message.get('action')}")
+

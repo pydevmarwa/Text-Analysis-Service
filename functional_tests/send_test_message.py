@@ -2,27 +2,28 @@ import asyncio
 import aio_pika
 import json
 from datetime import datetime
+from app.config import RABBITMQ
 
-RABBITMQ_HOST = 'localhost'  # or 'rabbitmq' if using Docker
-RABBITMQ_PORT = 5672
-RABBITMQ_USER = 'guest'
-RABBITMQ_PASSWORD = 'guest'
-INPUT_QUEUE = 'incoming_texts'
+INPUT_QUEUE = RABBITMQ['INPUT_QUEUE']
+OUTPUT_QUEUE = RABBITMQ['OUTPUT_QUEUE']
 
 async def send_message(message):
     """
     Send a single message to the RabbitMQ input queue.
     """
-    connection = await aio_pika.connect_robust(
-        host=RABBITMQ_HOST,
-        port=RABBITMQ_PORT,
-        login=RABBITMQ_USER,
-        password=RABBITMQ_PASSWORD,
+    conn = await aio_pika.connect_robust(
+        host=RABBITMQ['HOST'], port=RABBITMQ['PORT'],
+        login=RABBITMQ['USER'], password=RABBITMQ['PASSWORD']
     )
-    async with connection:
-        channel = await connection.channel()
-        await channel.declare_queue(INPUT_QUEUE, durable=True)
-        await channel.default_exchange.publish(
+    async with conn:
+        ch = await conn.channel()
+        await ch.declare_queue(INPUT_QUEUE,
+                               durable=True,
+                               arguments={
+                                   "x-dead-letter-exchange": RABBITMQ['DLX_EXCHANGE']
+                               }
+                               )
+        await ch.default_exchange.publish(
             aio_pika.Message(
                 body=json.dumps(message).encode(),
                 delivery_mode=aio_pika.DeliveryMode.PERSISTENT
@@ -36,7 +37,7 @@ async def main():
     """
     batch = [
         {"id": "msg1", "user_id": "u1", "text": "Hello world", "timestamp": datetime.utcnow().isoformat(), "type": "update"},
-        {"id": "msg2", "user_id": "u2", "text": "Another comment", "timestamp": datetime.utcnow().isoformat(), "type": "delete"},
+        {"id": "msg2", "user_id": "u2", "text": "Another comment", "timestamp": datetime.utcnow().isoformat(), "type": "update"},
         {"id": "msg3", "type": "delete"},  # Delete message without extra fields
         # Add more messages as needed
     ]

@@ -1,3 +1,9 @@
+"""
+batch_test.py – Full end-to-end functional test for text analysis service.
+Publishes a mix of 'update' and 'delete' messages to RabbitMQ,
+waits for processing, checks MongoDB and output queue.
+"""
+
 import asyncio
 import sys
 import json
@@ -52,8 +58,12 @@ async def publish_batch():
     )
     async with conn:
         ch = await conn.channel()
-        await ch.declare_queue(INPUT_QUEUE, durable=True)
-
+        await ch.declare_queue(INPUT_QUEUE,
+                               durable=True,
+                               arguments={
+                                   "x-dead-letter-exchange": RABBITMQ['DLX_EXCHANGE']
+                               }
+                               )
         for i in range(BATCH_SIZE):
             action = "delete" if i % DELETE_EVERY == 0 else "update"
             msg = {

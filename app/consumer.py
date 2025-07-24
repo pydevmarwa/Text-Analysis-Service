@@ -1,83 +1,85 @@
 import asyncio
 import json
-import aio_pika
-from aio_pika import RobustConnection
-from app.config import RABBITMQ
+import logging
+
+from aio_pika import connect_robust, IncomingMessage
 from app.processor import process_message
 from app.db import save_to_mongodb
 from app.publisher import publish_result
+from app.config import RABBITMQ, PROCESSING
 from app.logger import logger
 
-async def connect_with_retry(retries=10, delay=3) -> RobustConnection:
-    """
-    Connects to RabbitMQ with retry logic in case of failure.
+# Concurrency control semaphore
+SEMAPHORE = asyncio.Semaphore(PROCESSING['MAX_CONCURRENT_TASKS'])
 
-    Args:
-        retries (int): Number of retry attempts.
-        delay (int): Delay in seconds between retries.
-
-    Returns:
-        RobustConnection: Established robust connection to RabbitMQ.
-    """
-    logger.info("Starting RabbitMQ connection attempts")
+async def connect_with_retry(retries: int = 10, delay: int = 3):
+    logger.info("Connecting to RabbitMQ...")
     for attempt in range(1, retries + 1):
         try:
-            connection: RobustConnection = await aio_pika.connect_robust(
-                host=RABBITMQ["HOST"],
-                port=RABBITMQ["PORT"],
-                login=RABBITMQ["USER"],
-                password=RABBITMQ["PASSWORD"],
+            connection = await connect_robust(
+                host=RABBITMQ['HOST'],
+                port=RABBITMQ['PORT'],
+                login=RABBITMQ['USER'],
+                password=RABBITMQ['PASSWORD'],
             )
-            logger.info("Connected to RabbitMQ")
+            logger.info("Connected to RabbitMQ on attempt %d", attempt)
             return connection
         except Exception as e:
-            logger.error(f"Connection attempt {attempt} failed: {e}")
+            logger.error("Connection attempt %d/%d failed: %s", attempt, retries, e)
             if attempt == retries:
                 raise
             await asyncio.sleep(delay)
 
-async def handle_message(message: aio_pika.IncomingMessage):
-    """
-    Process a single incoming message from RabbitMQ.
+async def handle_message(msg: IncomingMessage):
+    async with SEMAPHORE:  # Limit concurrent processing
+        async with msg.process(requeue=False):
+            deaths = msg.headers.get('x-death', [])
+            retry_count = deaths[0]['count'] if deaths else 0
 
-    Args:
-        message (aio_pika.IncomingMessage): Incoming message instance.
-    """
-    async with message.process(requeue=False):
-        try:
-            raw_data = json.loads(message.body.decode())
-            logger.info(f"Received message {raw_data.get('id')}")
+            if retry_count >= RABBITMQ['MAX_RETRIES']:
+                logger.error("[DLX] Max retries reached for %s", msg.message_id)
+                return
 
-            processed = await process_message(raw_data)
-            await save_to_mongodb(processed)
+            try:
+                raw = json.loads(msg.body.decode())
+                logger.info("Received message %s (attempt %d)", raw.get('id'), retry_count + 1)
 
-            if processed.get("action") != "delete":
-                await publish_result(processed)
-        except json.JSONDecodeError:
-            logger.warning("Invalid JSON received, message will be NACKed")
-            raise
-        except Exception as e:
-            logger.exception(f"Error processing message, message will be NACKed: {e}")
-            raise
+                # Process message
+                processed = await process_message(raw)
+
+                # Store processed result
+                await save_to_mongodb(processed)
+
+                # Only publish if not a delete action
+                if processed.get('action') != 'delete':
+                    await publish_result(processed)
+
+                logger.info("Message %s processed successfully", raw.get('id'))
+
+            except json.JSONDecodeError:
+                logger.warning("Invalid JSON, message will be NACKed: %s", msg.body)
+                raise  # Will trigger NACK and retry
+            except Exception:
+                logger.exception("Error processing message, will retry")
+                await msg.nack(requeue=True)
 
 async def start_consumer():
-    """
-    Starts the RabbitMQ consumer to listen for incoming messages asynchronously.
-
-    Returns:
-        RobustConnection: The connection object to RabbitMQ.
-    """
-    connection = await connect_with_retry()
+    connection = await connect_with_retry(
+        retries=RABBITMQ.get('RETRY_ATTEMPTS', 10),
+        delay=RABBITMQ.get('RETRY_DELAY', 3)
+    )
     channel = await connection.channel()
+    await channel.set_qos(prefetch_count=RABBITMQ['PREFETCH_COUNT'])
 
-    # Process up to 20 messages concurrently
-    await channel.set_qos(prefetch_count=20)
+    # Declare queue with DLX support
+    await channel.declare_queue(
+        RABBITMQ['INPUT_QUEUE'],
+        durable=True,
+        arguments={"x-dead-letter-exchange": RABBITMQ['DLX_EXCHANGE']}
+    )
 
-    queue = await channel.declare_queue(RABBITMQ["INPUT_QUEUE"], durable=True)
-    logger.info("Waiting for messages...")
+    queue = await channel.get_queue(RABBITMQ['INPUT_QUEUE'])
+    await queue.consume(handle_message, no_ack=False)
 
-    async def on_message(message: aio_pika.IncomingMessage):
-        asyncio.create_task(handle_message(message))
-
-    await queue.consume(on_message)
+    logger.info("Consumer ready, listening on %s", RABBITMQ['INPUT_QUEUE'])
     return connection
