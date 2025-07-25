@@ -124,14 +124,14 @@ pytest tests
 
 ## How It Works
 
-1. The **consumer** listens on `incoming_texts`.  
-2. On each message, **processor** simulates a heavy task, scores toxicity, and reformats data.  
-3. **db** module upserts or deletes records in MongoDB by message `id`.  
-4. **publisher** sends enriched messages to `processed_texts`.  
-5. Downstream services (or our tests) read from `processed_texts`.
+1. The `consumer` listens on `incoming_texts`.  
+2. On each message, `processor` simulates a heavy task, scores toxicity, and reformats data.  
+3. `db` module upserts or deletes records in MongoDB by message id.  
+4. `publisher` sends enriched messages to `processed_texts`.  
+5. Downstream services (or our tests) read from `processed_texts`.  
 
-Feel free to explore, adapt thresholds in `config.py`, or replace the simulated 
-processor with a real NLP model. Good luck!
+Feel free to explore, adapt thresholds in `config.py`, or replace the simulated `processor` with a real NLP model. Good luck!
+
 ---
 
 
