@@ -1,3 +1,4 @@
+import os
 import asyncio
 import signal
 from app.consumer import start_consumer
@@ -29,7 +30,9 @@ async def main():
         )
 
     try:
-        connection = await start_consumer()
+        consumer = await asyncio.gather(
+            *(start_consumer() for _ in range(int(os.getenv("NUM_CONSUMERS", 1))))
+        )
         await asyncio.Event().wait()  # Runs until loop.stop() is called
 
     finally:

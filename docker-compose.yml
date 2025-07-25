@@ -31,6 +31,7 @@ services:
       MIN_PROCESSING_TIME: 2
       MAX_PROCESSING_TIME: 15
       TOXICITY_THRESHOLD: 70
+      NUM_CONSUMERS: 2
     volumes:
       - ./app:/app/app
       - ./logs:/app/logs

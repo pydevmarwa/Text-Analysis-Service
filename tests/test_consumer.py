@@ -8,9 +8,10 @@ class FakeIncomingMessage:
     Fake IncomingMessage for testing handle_message.
     Provides .body and a synchronous .process() method returning an async context manager.
     """
-    def __init__(self, body: bytes):
+    def __init__(self, body: bytes, headers=None):
         # body should be raw bytes
         self.body = body if isinstance(body, bytes) else body.encode()
+        self.headers = headers or {}
 
     def process(self, requeue=False):
         class DummyContext:

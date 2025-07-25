@@ -8,7 +8,7 @@ import asyncio
 import sys
 import json
 from datetime import datetime
-
+import time
 import aio_pika
 from motor.motor_asyncio import AsyncIOMotorClient
 
@@ -130,14 +130,15 @@ async def main():
     # 1) Clear DB and queue
     await clear_db()
     await purge_output_queue()
-
+    start = time.perf_counter()
     # 2) Publish batch
     await publish_batch()
 
     # 3) Wait for DB to be populated
     print("[*] Waiting for MongoDB to record all updates...")
     await wait_for_db()
-
+    total = time.perf_counter() - start
+    print(f"Batch of {BATCH_SIZE} processed in {total:.2f} seconds")
     # 4) Peek the output queue until we have all messages
     outputs = []
     while len(outputs) < EXPECTED_UPDATES:
