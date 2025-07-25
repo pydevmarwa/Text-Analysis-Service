@@ -135,7 +135,7 @@ pytest tests
 Feel free to explore, adapt thresholds in `config.py`, or replace the simulated 
 processor with a real NLP model. Good luck!
 
-##Scalability and Performance
+Scalability and Performance
 ---------------------------
 This service is designed to efficiently process large volumes of text messages asynchronously:
 
