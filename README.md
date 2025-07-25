@@ -34,7 +34,7 @@ how to process large volumes of text data asynchronously using RabbitMQ and Mong
   Builds a slim Python 3.11 image with dependencies installed.
 
 - **docker-compose.yml**  
-  Brings up RabbitMQ, MongoDB, and the service together.
+  Brings up RabbitMQ, MongoDB, and the service together (supports scaling consumers via `--scale`).
 
 - **requirements.txt**  
   Python dependencies list.
@@ -134,6 +134,17 @@ pytest tests
 
 Feel free to explore, adapt thresholds in `config.py`, or replace the simulated 
 processor with a real NLP model. Good luck!
+
+##Scalability and Performance
+---------------------------
+This service is designed to efficiently process large volumes of text messages asynchronously:
+
+- **Concurrency Control:** Utilizes `asyncio.Semaphore` to limit concurrent processing tasks per consumer instance.
+- **Prefetch Tuning:** Configured RabbitMQ `prefetch_count` to maintain a steady flow of messages without overwhelming consumers.
+- **Horizontal Scaling:** Easily deploy multiple consumer containers via `docker-compose up --scale app=<n>` or Kubernetes replicas.
+- **Robust Data Handling:** MongoDB upserts and deletes keep the data store consistent and performant.
+
+These architectural decisions allow seamless scaling to meet increasing load demands while maintaining reliability.
 
 
 ## Author
