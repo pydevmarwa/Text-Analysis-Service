@@ -1,6 +1,5 @@
 import json
-import aio_pika
-from aio_pika import Message, DeliveryMode
+from aio_pika import connect_robust, Message, DeliveryMode
 from app.config import RABBITMQ
 from app.logger import logger
 
@@ -15,7 +14,7 @@ async def publish_result(processed_message: dict):
         logger.debug(f"Skipping publish for delete id={processed_message.get('id')}")
         return  # Do not publish deletions
 
-    connection = await aio_pika.connect_robust(
+    connection = await connect_robust(
         host=RABBITMQ['HOST'],
         port=RABBITMQ['PORT'],
         login=RABBITMQ['USER'],
