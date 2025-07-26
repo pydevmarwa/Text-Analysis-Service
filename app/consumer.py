@@ -1,6 +1,5 @@
 import asyncio
 import json
-import logging
 
 from aio_pika import connect_robust, IncomingMessage
 from app.processor import process_message
