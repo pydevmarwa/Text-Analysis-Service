@@ -17,7 +17,6 @@ async def process_message(raw_message: Dict) -> Dict:
         ValueError: If message type is unknown or required fields missing.
     """
     msg_type = str(raw_message.get('type', '')).lower()
-
     if msg_type == 'delete':
         return {
             'action': 'delete',
@@ -32,7 +31,6 @@ async def process_message(raw_message: Dict) -> Dict:
         processing_time = await simulate_heavy_processing()
         toxicity_score = await calculate_toxicity_score(text)
         is_toxic = toxicity_score > PROCESSING['TOXICITY_THRESHOLD']
-
         return {
             'action': 'update',
             'id': raw_message.get('id'),

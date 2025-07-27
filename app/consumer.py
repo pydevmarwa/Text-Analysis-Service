@@ -45,7 +45,6 @@ async def handle_message(msg: IncomingMessage):
 
                 # Process message
                 processed = await process_message(raw)
-
                 # Store processed result
                 await save_to_mongodb(processed)
 
@@ -76,7 +75,6 @@ async def start_consumer():
         durable=True,
         arguments={"x-dead-letter-exchange": RABBITMQ['DLX_EXCHANGE']}
     )
-
     queue = await channel.get_queue(RABBITMQ['INPUT_QUEUE'])
     await queue.consume(handle_message, no_ack=False)
 
